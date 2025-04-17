@@ -77,6 +77,15 @@ public class SeedExplorerProgram {
         }
     }
 
+    public class SE_RunPathID : List<int>
+    {
+        public SE_RunPathID(IEnumerable<int> collection) : base(collection)
+        {
+        }
+    }
+
+    public class SE_RunPathType : List<NodeType> { }
+
     public static void GenerateSimplified(
         int depth,
         Random random,
@@ -698,5 +707,49 @@ public class SeedExplorerProgram {
         }
 
         DebugCompareInfos(generated1, generated2, $"S{seed1}", $"S{seed2}");
+    }
+
+    public static List<SE_RunPathID> GetAllRunPathsID(SE_Info infos) {
+        List<SE_RunPathID> runPathsID = new();
+        SE_Node startNode = infos.nodes.FirstOrDefault(n => n.Depth == 0);
+        SE_Node endNode = infos.nodes.FirstOrDefault(n => n.Depth == infos.nodes.Max(x => x.Depth));
+        if (startNode == null || endNode == null) {
+            Debug.LogError("SeedExplorer: Start or end node not found");
+            return runPathsID;
+        }
+        Queue<SE_Node> queue = new();
+        queue.Enqueue(startNode);
+        while (queue.Count > 0) {
+            SE_Node currentNode = queue.Dequeue();
+            foreach (SE_RunPathID runPathID in runPathsID.Where(r => r.Last() == currentNode.ID)) {
+                runPathsID.Remove(runPathID);
+                foreach (SE_Path path in infos.paths.Where(p => p.FromNodeID == currentNode.ID)) {
+                    SE_RunPathID newRunPathID = new SE_RunPathID(runPathID) {
+                        path.ToNodeID
+                    };
+                    runPathsID.Add(newRunPathID);
+                    if (queue.Contains(infos.nodes[path.ToNodeID]))
+                        continue;
+                    queue.Enqueue(infos.nodes[path.ToNodeID]);
+                }
+            }
+        }
+        return runPathsID;
+    }
+
+    public static List<SE_RunPathType> GetAllRunPathsType(SE_Info infos) {
+        List<SE_RunPathID> runPathsID = GetAllRunPathsID(infos);
+        List<SE_RunPathType> runPathsType = new();
+        foreach (SE_RunPathID runPathID in runPathsID) {
+            SE_RunPathType runPathType = new();
+            foreach (int nodeID in runPathID) {
+                SE_Node node = infos.nodes.FirstOrDefault(n => n.ID == nodeID);
+                if (node != null) {
+                    runPathType.Add(node.Type);
+                }
+            }
+            runPathsType.Add(runPathType);
+        }
+        return runPathsType;
     }
 }
